@@ -55,7 +55,7 @@ pub fn part_two(input: &str) -> Option<usize> {
         stack.truncate(k);
 
         let value = stack.iter().fold(0, |acc, &e| acc * 10 + e as usize);
-        sum += value as usize;
+        sum += value;
     }
 
     Some(sum)
@@ -74,6 +74,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, Some(3121910778619));
+        assert_eq!(result, Some(3_121_910_778_619));
     }
 }

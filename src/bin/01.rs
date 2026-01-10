@@ -1,9 +1,9 @@
 advent_of_code::solution!(1);
 
-#[inline(always)]
 fn range(value: isize, range: isize) -> isize {
     ((value % range) + range) % range
 }
+
 pub fn part_one(input: &str) -> Option<u64> {
     let mut password = 0;
     let mut dial: isize = 50;
@@ -17,7 +17,7 @@ pub fn part_one(input: &str) -> Option<u64> {
             _ => unreachable!(),
         };
         if dial == 0 {
-            password += 1
+            password += 1;
         }
     }
     Some(password)
