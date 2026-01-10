@@ -1,64 +1,61 @@
 advent_of_code::solution!(4);
 
-pub fn neighbors(
-    row: usize,
-    col: usize,
-    rows: usize,
-    cols: usize,
-) -> impl Iterator<Item = (usize, usize)> {
-    const DIRS: [(isize, isize); 8] = [
-        (-1, -1),
-        (-1, 0),
-        (-1, 1),
-        (0, -1),
-        (0, 1),
-        (1, -1),
-        (1, 0),
-        (1, 1),
-    ];
-
-    DIRS.into_iter().filter_map(move |(dr, dc)| {
-        let nr = row as isize + dr;
-        let nc = col as isize + dc;
-
-        if nr >= 0 && nc >= 0 {
-            let (nr, nc) = (nr as usize, nc as usize);
-            if nr < rows && nc < cols {
-                return Some((nr, nc));
-            }
-        }
-        None
-    })
-}
-
-pub fn count_neighbors<T, F>(grid: &[Vec<T>], row: usize, col: usize, mut predicate: F) -> usize
-where
-    F: FnMut(&T) -> bool,
-{
-    let rows = grid.len();
-    let cols = grid[0].len();
-
-    neighbors(row, col, rows, cols)
-        .filter(|&(r, c)| predicate(&grid[r][c]))
-        .count()
-}
 pub fn part_one(input: &str) -> Option<u64> {
-    let mut grid = input
-        .lines()
-        .map(|l| l.chars().collect::<Vec<_>>())
-        .collect::<Vec<_>>();
+    let lines: Vec<&str> = input.lines().collect();
+    let rows = lines.len();
+    let cols = lines[0].len();
 
-    let rows = grid.len();
-    let cols = grid[0].len();
+    // Use flat byte array for better cache performance
+    let mut grid: Vec<u8> = lines.iter().flat_map(|l| l.bytes()).collect();
 
     let mut sum = 0;
 
     for r in 0..rows {
+        let row_start = r * cols;
         for c in 0..cols {
-            if grid[r][c] == '@' {
-                let count = count_neighbors(&grid, r, c, |i| *i == '@' || *i == 'x');
+            let idx = row_start + c;
+            if grid[idx] == b'@' {
+                let mut count = 0;
+
+                // Check all 8 neighbors
+                if r > 0 {
+                    let prev_row = (r - 1) * cols;
+                    if c > 0 && (grid[prev_row + c - 1] == b'@' || grid[prev_row + c - 1] == b'x') {
+                        count += 1;
+                    }
+                    if grid[prev_row + c] == b'@' || grid[prev_row + c] == b'x' {
+                        count += 1;
+                    }
+                    if c + 1 < cols
+                        && (grid[prev_row + c + 1] == b'@' || grid[prev_row + c + 1] == b'x')
+                    {
+                        count += 1;
+                    }
+                }
+                if count < 4 && c > 0 && (grid[idx - 1] == b'@' || grid[idx - 1] == b'x') {
+                    count += 1;
+                }
+                if count < 4 && c + 1 < cols && (grid[idx + 1] == b'@' || grid[idx + 1] == b'x') {
+                    count += 1;
+                }
+                if count < 4 && r + 1 < rows {
+                    let next_row = (r + 1) * cols;
+                    if c > 0 && (grid[next_row + c - 1] == b'@' || grid[next_row + c - 1] == b'x') {
+                        count += 1;
+                    }
+                    if count < 4 && (grid[next_row + c] == b'@' || grid[next_row + c] == b'x') {
+                        count += 1;
+                    }
+                    if count < 4
+                        && c + 1 < cols
+                        && (grid[next_row + c + 1] == b'@' || grid[next_row + c + 1] == b'x')
+                    {
+                        count += 1;
+                    }
+                }
+
                 if count < 4 {
-                    grid[r][c] = 'x';
+                    grid[idx] = b'x';
                     sum += 1;
                 }
             }
@@ -68,42 +65,78 @@ pub fn part_one(input: &str) -> Option<u64> {
 }
 
 pub fn part_two(input: &str) -> Option<u64> {
-    let mut grid = input
-        .lines()
-        .map(|l| l.chars().collect::<Vec<_>>())
-        .collect::<Vec<_>>();
+    let lines: Vec<&str> = input.lines().collect();
+    let rows = lines.len();
+    let cols = lines[0].len();
 
-    let rows = grid.len();
-    let cols = grid[0].len();
+    // Use flat byte array for better cache performance
+    let mut grid: Vec<u8> = lines.iter().flat_map(|l| l.bytes()).collect();
 
     let mut sum = 0;
+    let mut positions_to_remove = Vec::with_capacity(128);
 
     loop {
-        let mut temp = 0;
+        positions_to_remove.clear();
+
+        // Find all positions to remove in this iteration
         for r in 0..rows {
+            let row_start = r * cols;
             for c in 0..cols {
-                if grid[r][c] == '@' {
-                    let count = count_neighbors(&grid, r, c, |i| *i == '@' || *i == 'x');
+                let idx = row_start + c;
+                if grid[idx] == b'@' {
+                    let mut count = 0;
+
+                    // Manually unrolled neighbor checks for performance
+                    // Top row
+                    if r > 0 {
+                        let prev_row = (r - 1) * cols;
+                        if c > 0 && grid[prev_row + c - 1] == b'@' {
+                            count += 1;
+                        }
+                        if grid[prev_row + c] == b'@' {
+                            count += 1;
+                        }
+                        if c + 1 < cols && grid[prev_row + c + 1] == b'@' {
+                            count += 1;
+                        }
+                    }
+                    // Middle row (left and right)
+                    if count < 4 && c > 0 && grid[idx - 1] == b'@' {
+                        count += 1;
+                    }
+                    if count < 4 && c + 1 < cols && grid[idx + 1] == b'@' {
+                        count += 1;
+                    }
+                    // Bottom row
+                    if count < 4 && r + 1 < rows {
+                        let next_row = (r + 1) * cols;
+                        if c > 0 && grid[next_row + c - 1] == b'@' {
+                            count += 1;
+                        }
+                        if count < 4 && grid[next_row + c] == b'@' {
+                            count += 1;
+                        }
+                        if count < 4 && c + 1 < cols && grid[next_row + c + 1] == b'@' {
+                            count += 1;
+                        }
+                    }
+
                     if count < 4 {
-                        grid[r][c] = 'x';
-                        temp += 1;
+                        positions_to_remove.push(idx);
                     }
                 }
             }
         }
 
-        if temp != 0 {
-            sum += temp;
-        } else {
+        if positions_to_remove.is_empty() {
             break;
         }
 
-        for r in 0..rows {
-            for c in 0..cols {
-                if grid[r][c] == 'x' {
-                    grid[r][c] = '.';
-                }
-            }
+        sum += positions_to_remove.len() as u64;
+
+        // Remove all marked positions
+        for &idx in &positions_to_remove {
+            grid[idx] = b'.';
         }
     }
 
