@@ -41,14 +41,63 @@ pub fn part_one(input: &str) -> Option<u64> {
 //  45 64  387 23
 //   6 98  215 314
 // *   +   *   +
-// the first numbers are: 4, 431, 623.
+// The first numbers are: 4, 431, 623.
+// The last numbers are: 356 + 24 + 1
 // Every number now is formed from the column, not the row.
 pub fn part_two(input: &str) -> Option<u64> {
-    let mut columns: Vec<Vec<u64>> = Vec::new();
-    let mut sum = 0;
+    let rows: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
+    let (height, width) = (rows.len(), rows[0].len());
 
-    for line in input.lines() {
-        // TODO: ...
+    let mut cols: Vec<Vec<char>> = Vec::with_capacity(width);
+    for x in 0..width {
+        let mut col = Vec::with_capacity(height);
+        for y in 0..height {
+            col.push(rows[y][x]);
+        }
+        cols.push(col);
+    }
+
+    let is_separator = |col: &[char]| -> bool { col.iter().all(|c| *c == ' ') };
+    let operator =
+        |col: &[char]| -> Option<char> { col.last().filter(|c| **c == '+' || **c == '*').copied() };
+
+    let parse = |col: &[char]| -> Option<u64> {
+        let digits: String = col
+            .iter()
+            .take(col.len() - 1)
+            .filter(|c| c.is_ascii_digit())
+            .collect();
+        (!digits.is_empty()).then_some(digits.parse().unwrap())
+    };
+
+    let process = |col: &Vec<Vec<_>>| -> u64 {
+        let op = operator(&col[0]).expect("Operator expected");
+        let mut counter = Vec::new();
+        for item in col.iter().rev() {
+            if let Some(n) = parse(&item) {
+                counter.push(n);
+            }
+        }
+        match op {
+            '*' => counter.iter().product(),
+            '+' => counter.iter().sum(),
+            _ => unreachable!(),
+        }
+    };
+
+    let mut sum = 0;
+    let mut op = Vec::new();
+    for col in cols {
+        if is_separator(&col) {
+            sum += process(&op);
+            op.clear();
+        } else {
+            op.push(col);
+        }
+    }
+
+    if !op.is_empty() {
+        sum += process(&op);
     }
 
     Some(sum)
