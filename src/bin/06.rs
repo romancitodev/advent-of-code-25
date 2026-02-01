@@ -45,58 +45,48 @@ pub fn part_one(input: &str) -> Option<u64> {
 // The last numbers are: 356 + 24 + 1
 // Every number now is formed from the column, not the row.
 pub fn part_two(input: &str) -> Option<u64> {
-    let rows: Vec<Vec<char>> = input.lines().map(|l| l.chars().collect()).collect();
+    // we collect once and just map all as bytes.
+    let rows: Vec<&[u8]> = input.lines().map(|l| l.as_bytes()).collect();
     let (height, width) = (rows.len(), rows[0].len());
 
-    // we map ranges instead of having a vec and doing allocations
-    let cols: Vec<Vec<char>> = (0..width)
-        .map(|x| (0..height).map(|y| rows[y][x]).collect())
-        .collect();
+    let is_separator = |x: usize| -> bool { (0..height).all(|y| rows[y][x] == b' ') };
 
-    let is_separator = |col: &[char]| -> bool { col.iter().all(|c| *c == ' ') };
-
-    let operator =
-        |col: &[char]| -> Option<char> { col.last().filter(|c| **c == '+' || **c == '*').copied() };
+    let operator = |x: usize| -> u8 { rows[height - 1][x] };
 
     // We don't use string allocations, because we calculate the number manually.
-    let parse = |col: &[char]| -> Option<u64> {
+    let parse_column = |x| {
         let mut num = 0u64;
         let mut found = false;
-        for i in 0..col.len() - 1 {
-            if col[i].is_ascii_digit() {
-                num = num * 10 + (col[i] as u64 - '0' as u64); // We calculate the number directly and remove the '0' because we don't want to use the printable number.
+        for y in 0..height - 1 {
+            let c = rows[y][x] as u8;
+            if c.is_ascii_digit() {
+                num = num * 10 + (c as u64 - '0' as u64); // We calculate the number directly and remove the '0' because we don't want to use the printable number.
                 found = true;
             }
         }
         found.then_some(num)
     };
 
-    let process = |col: &Vec<Vec<_>>| -> u64 {
-        // SAFETY: always we have an op.
-        let op = unsafe { operator(&col[0]).unwrap_unchecked() };
-        // instead of having a Vec and doinig allocations, we just iter over the current col and parse it, then we avoid these allocations.
-        let counter = col.iter().rev().filter_map(|c| parse(&c));
-        match op {
-            '*' => counter.product(),
-            '+' => counter.sum(),
-            _ => unreachable!(),
-        }
-    };
+    // here's the demential part.
 
     let mut sum = 0;
-    let mut op = Vec::with_capacity(cols.len());
-    for col in cols {
-        if is_separator(&col) {
-            sum += process(&op);
-            op.clear();
-        } else {
-            op.push(col);
-        }
-    }
+    let mut start = 0;
 
-    // maybe we forgot the final cols & rows, so we ensure that we calculate it.
-    if !op.is_empty() {
-        sum += process(&op);
+    // here we parse on the fly, so we don't pre-allocate anything.
+    for x in 0..width {
+        if is_separator(x) {
+            if start < x {
+                let op = operator(start);
+                let nums = (start..x).rev().filter_map(parse_column);
+                let result = match op {
+                    b'*' => nums.product::<u64>(),
+                    b'+' => nums.sum::<u64>(),
+                    _ => unreachable!(),
+                };
+                sum += result;
+            }
+            start = x + 1;
+        }
     }
 
     Some(sum)
