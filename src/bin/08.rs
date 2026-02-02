@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 advent_of_code::solution!(8);
 
@@ -76,7 +76,7 @@ pub fn part_one(input: &str) -> Option<u64> {
 
     let n = jboxs.len();
     let mut map = UnionFind::new(n);
-    let mut edges = Vec::new();
+    let mut edges = Vec::with_capacity(n * (n - 1) / 2);
 
     for i in 0..n {
         for j in (i + 1)..n {
@@ -85,23 +85,21 @@ pub fn part_one(input: &str) -> Option<u64> {
         }
     }
 
-    edges.sort_unstable_by_key(|a| a.0);
-
     // hardcoded because of the statement says so.
     let k = { if cfg!(test) { 10 } else { 1000 } };
-    for &(_, i, j) in edges.iter().take(k) {
+    edges.select_nth_unstable_by_key(k - 1, |e| e.0);
+    for &(_, i, j) in &edges[..k] {
         let _ = map.union(i, j);
     }
 
-    let mut count = HashMap::new();
+    let mut count = vec![0u64; n];
     for i in 0..jboxs.len() {
         let r = map.find(i);
-        *count.entry(r).or_insert(0u64) += 1;
+        count[r] += 1;
     }
 
-    let mut vals: Vec<u64> = count.values().copied().collect();
-
-    vals.sort_unstable_by(|a, b| b.cmp(a));
+    let mut vals: Vec<u64> = count.into_iter().filter(|&x| x > 0).collect();
+    vals.select_nth_unstable_by(2, |a, b| b.cmp(a));
 
     Some(vals[0] * vals[1] * vals[2])
 }
@@ -114,35 +112,28 @@ pub fn part_two(input: &str) -> Option<u64> {
         .collect();
 
     let n = jboxs.len();
-    let mut edges = Vec::new();
+    let mut edges = BinaryHeap::with_capacity(n * (n - 1) / 2);
 
     for i in 0..n {
         for j in (i + 1)..n {
             let d = distance(jboxs[i], jboxs[j]);
-            edges.push((d, i, j));
+            edges.push(Reverse((d, i, j)));
         }
     }
 
-    edges.sort_unstable_by_key(|a| a.0);
-
     let mut map = UnionFind::new(n);
     let mut components = n;
-    let mut last_edge = None;
 
-    for &(_, i, j) in &edges {
+    while let Some(Reverse((_, i, j))) = edges.pop() {
         if map.union(i, j) {
             components -= 1;
-            last_edge = Some((i, j));
             if components == 1 {
-                break;
+                return Some(jboxs[i].0 as u64 * jboxs[j].0 as u64);
             }
         }
     }
 
-    // SAFETY: We know in this case there always will be a `last_edge`
-    let (i, j) = last_edge.unwrap();
-
-    Some(jboxs[i].0 as u64 * jboxs[j].0 as u64)
+    None
 }
 
 #[cfg(test)]
