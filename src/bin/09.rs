@@ -30,21 +30,16 @@ pub fn part_one(input: &str) -> Option<u64> {
 
     let mut max = 0;
 
-    // NOTE: very weird hack to force the compiler to unroll the loop.
     for (i, &curr) in tiles.iter().enumerate() {
+        const CHUNK: usize = 16;
         let rest = &tiles[i + 1..];
-        let chunks = rest.chunks_exact(8);
+        let chunks = rest.chunks_exact(CHUNK);
         let remainder = chunks.remainder();
 
         for chunk in chunks {
-            max = max.max(area(curr, chunk[0]) as u64);
-            max = max.max(area(curr, chunk[1]) as u64);
-            max = max.max(area(curr, chunk[2]) as u64);
-            max = max.max(area(curr, chunk[3]) as u64);
-            max = max.max(area(curr, chunk[4]) as u64);
-            max = max.max(area(curr, chunk[5]) as u64);
-            max = max.max(area(curr, chunk[6]) as u64);
-            max = max.max(area(curr, chunk[7]) as u64);
+            for j in 0..CHUNK {
+                max = max.max(area(curr, chunk[j]) as u64);
+            }
         }
 
         for &other in remainder {
